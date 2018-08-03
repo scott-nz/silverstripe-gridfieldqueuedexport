@@ -8,6 +8,7 @@ use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\SapphireTest;
 use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\GridfieldQueuedExport\Jobs\GenerateCSVJob;
+use SilverStripe\SiteConfig\SiteConfig;
 
 class GenerateCSVJobTest extends SapphireTest
 {
@@ -43,6 +44,8 @@ class GenerateCSVJobTest extends SapphireTest
         $memberID = $this->logInWithPermission('ADMIN');
         $session = ['loggedInAs' => $memberID];
 
+        Config::modify()->set(GenerateCSVJob::class, 'chunk_size', 10);
+
         // Build controller
         $controller = new GenerateCSVJobTestController();
         $form = $controller->Form();
@@ -70,6 +73,8 @@ class GenerateCSVJobTest extends SapphireTest
         ];
         $actual = file_get_contents($path);
         $this->assertEquals(implode("\r\n", $expected), $actual);
+
+        $this->assertEmailSent('ADMIN@example.org');
     }
 
     public function testGenerateExportOverMultipleSteps()
@@ -117,6 +122,8 @@ class GenerateCSVJobTest extends SapphireTest
         ];
         $actual = file_get_contents($path);
         $this->assertEquals(implode("\r\n", $expected), $actual);
+
+        $this->assertEmailSent('ADMIN@example.org');
     }
 
     /**

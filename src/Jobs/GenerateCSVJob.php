@@ -3,8 +3,10 @@
 namespace SilverStripe\GridfieldQueuedExport\Jobs;
 
 use League\Csv\Writer;
+use SilverStripe\Assets\File;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\Director;
+use SilverStripe\Control\Email\Email;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse_Exception;
 use SilverStripe\Control\Session;
@@ -15,7 +17,9 @@ use SilverStripe\Forms\GridField\GridFieldDataColumns;
 use SilverStripe\Forms\GridField\GridFieldExportButton;
 use SilverStripe\Forms\GridField\GridFieldPageCount;
 use SilverStripe\Forms\GridField\GridFieldPaginator;
+use SilverStripe\ORM\FieldType\DBDatetime;
 use SilverStripe\Security\RandomGenerator;
+use SilverStripe\Security\Security;
 use Symbiote\QueuedJobs\Services\AbstractQueuedJob;
 use Symbiote\QueuedJobs\Services\QueuedJob;
 use SilverStripe\GridfieldQueuedExport\Forms\GridFieldQueuedExportButtonResponse;
@@ -350,5 +354,30 @@ class GenerateCSVJob extends AbstractQueuedJob
         if ($this->currentStep >= $this->totalSteps) {
             $this->isComplete = true;
         }
+    }
+
+    /**
+     * Called when the job is determined to be 'complete'
+     */
+    public function afterComplete()
+    {
+        $admin = Security::getCurrentUser();
+        $adminAddress = $admin->Email;
+        if (Email::is_valid_address($adminAddress)) {
+            $this->sendExportEmail($adminAddress);
+        }
+    }
+
+    public function sendExportEmail($adminAddress)
+    {
+        $filePath = $this->getOutputPath();
+        $mail = Email::create();
+        $mail->setSubject($this->jobData->GridFieldName . ' CSV Export ' . DBDatetime::now()->Format(DBDatetime::ISO_DATETIME));
+        $mail->addAttachment($filePath);
+        $from = $this->config && $this->config->SendMailFrom ? $this->config->SendMailFrom : 'site@' . Director::host();
+        $mail->setFrom($from);
+        $mail->setTo($adminAddress);
+        $mail->setBody('Please see attached CSV files');
+        $mail->send();
     }
 }

@@ -113,7 +113,7 @@ class GridFieldQueuedExportButton implements GridField_HTMLProvider, GridField_A
     public function startExport($gridField)
     {
         $job = new GenerateCSVJob();
-
+        $controller = Controller::curr();
         // Set the parameters that allow re-discovering this gridfield during background execution
         $job->setGridField($gridField);
         $job->setSession(Injector::inst()->get(HTTPRequest::class)->getSession()->getAll());
@@ -128,8 +128,8 @@ class GridFieldQueuedExportButton implements GridField_HTMLProvider, GridField_A
         // Queue the job
         singleton(QueuedJobService::class)->queueJob($job);
 
-        // Redirect to the status update page
-        return Controller::curr()->redirect($gridField->Link('/export/' . $job->getSignature()));
+        // Redirect to the current page
+        return $controller->redirectBack();
     }
 
 
@@ -311,4 +311,5 @@ class GridFieldQueuedExportButton implements GridField_HTMLProvider, GridField_A
         $this->csvHasHeader = $bool;
         return $this;
     }
+
 }
