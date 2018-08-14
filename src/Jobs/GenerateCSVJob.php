@@ -43,6 +43,8 @@ class GenerateCSVJob extends AbstractQueuedJob
 
     protected $writer;
 
+    protected $emailCSV = false;
+
     public function __construct()
     {
         $this->ID = Injector::inst()->create(RandomGenerator::class)->randomToken('sha1');
@@ -300,6 +302,9 @@ class GenerateCSVJob extends AbstractQueuedJob
     {
         parent::setup();
         $gridField = $this->getGridField();
+        $fieldType = 'SilverStripe\GridfieldQueuedExport\Forms\GridFieldQueuedExportButton';
+        $queuedExportButton = $gridField->getConfig()->getComponentByType($fieldType);
+        $this->setEmailCSV($queuedExportButton->getEmailCSV());
         $this->totalSteps = $gridField->getManipulatedList()->count();
     }
 
@@ -363,9 +368,27 @@ class GenerateCSVJob extends AbstractQueuedJob
     {
         $admin = Security::getCurrentUser();
         $adminAddress = $admin->Email;
-        if (Email::is_valid_address($adminAddress)) {
+        if ($this->getEmailCSV() && Email::is_valid_address($adminAddress)) {
             $this->sendExportEmail($adminAddress);
         }
+    }
+
+    /**
+     * @return boolean
+     */
+    public function getEmailCSV()
+    {
+        return $this->emailCSV;
+    }
+
+    /**
+     * @param boolean
+     * @return $this
+     */
+    public function setEmailCSV($bool)
+    {
+        $this->emailCSV = $bool;
+        return $this;
     }
 
     public function sendExportEmail($adminAddress)
@@ -379,5 +402,8 @@ class GenerateCSVJob extends AbstractQueuedJob
         $mail->setTo($adminAddress);
         $mail->setBody('Please see attached CSV files');
         $mail->send();
+
+        unlink($filePath);
+        rmdir(dirname($filePath));
     }
 }

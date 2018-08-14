@@ -12,6 +12,7 @@ use SilverStripe\Forms\GridField\GridField_FormAction;
 use SilverStripe\Forms\GridField\GridField_HTMLProvider;
 use SilverStripe\Forms\GridField\GridField_URLHandler;
 use SilverStripe\ORM\FieldType\DBHTMLText;
+use SilverStripe\ORM\ValidationResult;
 use SilverStripe\Security\Security;
 use SilverStripe\View\ArrayData;
 use SilverStripe\View\Requirements;
@@ -47,6 +48,11 @@ class GridFieldQueuedExportButton implements GridField_HTMLProvider, GridField_A
      * Fragment to write the button to
      */
     protected $targetFragment;
+
+    /**
+     * @var boolean
+     */
+    protected $emailCSV = false;
 
     /**
      * @param string $targetFragment The HTML fragment to write the button into
@@ -128,8 +134,17 @@ class GridFieldQueuedExportButton implements GridField_HTMLProvider, GridField_A
         // Queue the job
         singleton(QueuedJobService::class)->queueJob($job);
 
-        // Redirect to the current page
-        return $controller->redirectBack();
+        if ($this->getEmailCSV()) {
+            $job->setEmailCSV(true);
+            $exportMessage = 'Export started. The generated CSV will be emailed to you once the export has completed';
+            $form = $gridField->getForm();
+            $form->sessionMessage($exportMessage, ValidationResult::TYPE_GOOD);
+            // Redirect to the current page
+            return $controller->redirectBack();
+        } else {
+            // Redirect to the status update page
+            return Controller::curr()->redirect($gridField->Link('/export/' . $job->getSignature()));
+        }
     }
 
 
@@ -309,6 +324,24 @@ class GridFieldQueuedExportButton implements GridField_HTMLProvider, GridField_A
     public function setCsvHasHeader($bool)
     {
         $this->csvHasHeader = $bool;
+        return $this;
+    }
+
+    /**
+     * @return boolean
+     */
+    public function getEmailCSV()
+    {
+        return $this->emailCSV;
+    }
+
+    /**
+     * @param boolean
+     * @return $this
+     */
+    public function setEmailCSV($bool)
+    {
+        $this->emailCSV = $bool;
         return $this;
     }
 
